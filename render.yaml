@@ -1,0 +1,16 @@
+# Render Blueprint - defines the bot as a Background Worker.
+# Secrets are NOT here; set them in the Render dashboard (sync: false).
+services:
+  - type: worker
+    name: finance-telegram-bot
+    runtime: python
+    plan: starter            # Background workers are paid (~$7/mo). No free tier.
+    buildCommand: pip install -r requirements.txt
+    startCommand: python finance_bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false           # enter in dashboard
+      - key: CHAT_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
