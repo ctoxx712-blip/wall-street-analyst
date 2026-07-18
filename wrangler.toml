@@ -1,0 +1,17 @@
+# Cloudflare Workers config for the Wall Street Analyst website.
+#
+# Free tier: 100,000 requests/day, never sleeps, served from the edge worldwide.
+#
+# Secrets are NOT stored here. Set them in the Cloudflare dashboard under
+#   Workers & Pages -> your worker -> Settings -> Variables and Secrets
+# or from a terminal with:  npx wrangler secret put ANTHROPIC_API_KEY
+
+name = "wall-street-analyst"
+main = "worker.js"
+compatibility_date = "2025-11-01"
+
+# Serves the same static/index.html used by the Flask version, so there is
+# only ever one copy of the frontend to maintain.
+[assets]
+directory = "./static"
+binding = "ASSETS"
