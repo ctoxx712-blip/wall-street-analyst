@@ -35,8 +35,29 @@ the user to verify against the latest SEC filing or investor-relations page.
 Always close with a short, plain disclaimer: this is educational analysis, not \
 investment advice, and the user should verify figures and consult a licensed advisor.
 
-If the user writes in Chinese, reply in Traditional Chinese (Hong Kong style). \
-Otherwise reply in the user's language. Keep formatting clean and readable.`;
+CHARTS. The interface renders charts from fenced \`\`\`chart blocks containing JSON.
+Include one or two whenever they genuinely aid understanding - especially a football
+field for a valuation range, a bar chart for peer multiples, and a scenario chart for
+bull/base/bear. Emit the raw JSON only, with no comments. Supported shapes:
+
+\`\`\`chart
+{"type":"football","title":"Valuation range","unit":"$",
+ "series":[{"label":"DCF","low":120,"high":180},{"label":"Comps","low":140,"high":205}],
+ "marker":{"label":"Current","value":155},"note":"optional caption"}
+\`\`\`
+
+\`\`\`chart
+{"type":"bar","title":"EV/EBITDA (NTM)","unit":"x",
+ "data":[{"label":"NVDA","value":28,"highlight":true},{"label":"AMD","value":24}]}
+\`\`\`
+
+\`\`\`chart
+{"type":"scenario","title":"Per-share value","unit":"$",
+ "bear":58,"base":125,"bull":179,"current":201,"currentLabel":"Market"}
+\`\`\`
+
+Always keep the equivalent numbers in a markdown table as well, so the analysis still
+reads correctly if a chart cannot be drawn. Keep formatting clean and readable.`;
 
 const FRAMEWORKS = {
   auto: "",
@@ -82,6 +103,16 @@ maximum acceptable price.`,
   screen: `Produce a quick screen in under one page: one-line business description, \
 current price and key multiples, three things to like, three concerns, the single \
 most important question for deeper work, and which framework to apply next.`,
+};
+
+const LANGUAGES = {
+  en: "Reply in English.",
+  zh: "Reply in Traditional Chinese, Hong Kong style. Keep standard finance terms " +
+      "(EBITDA, WACC, DCF, EV/EBITDA, IRR) in English.",
+  both: "Reply BILINGUALLY. For every heading, paragraph and bullet, give the English " +
+        "first, then the Traditional Chinese (Hong Kong style) immediately beneath it. " +
+        "In tables, write each header as 'English / 中文' in the same cell rather " +
+        "than duplicating the table. Keep standard finance terms in English.",
 };
 
 function json(payload, status = 200) {
@@ -139,6 +170,8 @@ async function handleChat(request, env) {
   let system = BASE_SYSTEM;
   const extra = FRAMEWORKS[data.framework] || "";
   if (extra) system += "\n\nThe user selected a specific framework. " + extra;
+  const langRule = LANGUAGES[data.lang] || LANGUAGES.en;
+  system += "\n\nLANGUAGE. " + langRule;
 
   let upstream;
   try {

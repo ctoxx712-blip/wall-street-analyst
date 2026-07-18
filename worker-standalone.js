@@ -1,13 +1,16 @@
 /**
  * Wall Street Analyst - single-file Cloudflare Worker.
  *
- * EVERYTHING is in this one file: the website and the API backend.
- * Paste it into the Cloudflare Workers editor, add your ANTHROPIC_API_KEY
- * as a Secret, and deploy. No GitHub, no build step, no config files.
+ * The whole site and its backend live in this one file. Paste it into the
+ * Cloudflare Workers editor, add ANTHROPIC_API_KEY as a Secret, and deploy.
  *
- * Secrets (Cloudflare -> your Worker -> Settings -> Variables and Secrets):
+ * This file is deliberately PURE ASCII: every non-English character is written
+ * as a \uXXXX escape, so copying and pasting it through any editor can never
+ * corrupt the Chinese text (which was the cause of the earlier mojibake).
+ *
+ * Secrets (Cloudflare -> Settings -> Variables and Secrets):
  *   ANTHROPIC_API_KEY   required
- *   ACCESS_PASSWORD     optional but recommended; blank = anyone with the URL
+ *   ACCESS_PASSWORD     optional but recommended
  */
 
 const MODEL = "claude-opus-4-8";
@@ -34,8 +37,29 @@ the user to verify against the latest SEC filing or investor-relations page.
 Always close with a short, plain disclaimer: this is educational analysis, not \
 investment advice, and the user should verify figures and consult a licensed advisor.
 
-If the user writes in Chinese, reply in Traditional Chinese (Hong Kong style). \
-Otherwise reply in the user's language. Keep formatting clean and readable.`;
+CHARTS. The interface renders charts from fenced \`\`\`chart blocks containing JSON.
+Include one or two whenever they genuinely aid understanding - especially a football
+field for a valuation range, a bar chart for peer multiples, and a scenario chart for
+bull/base/bear. Emit the raw JSON only, with no comments. Supported shapes:
+
+\`\`\`chart
+{"type":"football","title":"Valuation range","unit":"$",
+ "series":[{"label":"DCF","low":120,"high":180},{"label":"Comps","low":140,"high":205}],
+ "marker":{"label":"Current","value":155},"note":"optional caption"}
+\`\`\`
+
+\`\`\`chart
+{"type":"bar","title":"EV/EBITDA (NTM)","unit":"x",
+ "data":[{"label":"NVDA","value":28,"highlight":true},{"label":"AMD","value":24}]}
+\`\`\`
+
+\`\`\`chart
+{"type":"scenario","title":"Per-share value","unit":"$",
+ "bear":58,"base":125,"bull":179,"current":201,"currentLabel":"Market"}
+\`\`\`
+
+Always keep the equivalent numbers in a markdown table as well, so the analysis still
+reads correctly if a chart cannot be drawn. Keep formatting clean and readable.`;
 
 const FRAMEWORKS = {
   auto: "",
@@ -81,6 +105,16 @@ maximum acceptable price.`,
   screen: `Produce a quick screen in under one page: one-line business description, \
 current price and key multiples, three things to like, three concerns, the single \
 most important question for deeper work, and which framework to apply next.`,
+};
+
+const LANGUAGES = {
+  en: "Reply in English.",
+  zh: "Reply in Traditional Chinese, Hong Kong style. Keep standard finance terms " +
+      "(EBITDA, WACC, DCF, EV/EBITDA, IRR) in English.",
+  both: "Reply BILINGUALLY. For every heading, paragraph and bullet, give the English " +
+        "first, then the Traditional Chinese (Hong Kong style) immediately beneath it. " +
+        "In tables, write each header as 'English / \u4e2d\u6587' in the same cell rather " +
+        "than duplicating the table. Keep standard finance terms in English.",
 };
 
 function json(payload, status = 200) {
@@ -138,6 +172,8 @@ async function handleChat(request, env) {
   let system = BASE_SYSTEM;
   const extra = FRAMEWORKS[data.framework] || "";
   if (extra) system += "\n\nThe user selected a specific framework. " + extra;
+  const langRule = LANGUAGES[data.lang] || LANGUAGES.en;
+  system += "\n\nLANGUAGE. " + langRule;
 
   let upstream;
   try {
@@ -186,9 +222,9 @@ const PAGE = `<!doctype html>
   :root{
     --bg:#0d1117; --panel:#141b24; --panel-2:#1b2430; --line:#263341;
     --text:#e6edf3; --muted:#8b98a5; --accent:#d4a24a; --accent-2:#3fb950;
-    --danger:#f85149; --user:#1f6feb;
+    --danger:#f85149; --user:#1f6feb; --bear:#f85149; --base:#8b98a5; --bull:#3fb950;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang HK","Microsoft JhengHei",sans-serif;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -196,14 +232,20 @@ const PAGE = `<!doctype html>
        display:flex;flex-direction:column;font-size:15px;line-height:1.6}
 
   header{background:var(--panel);border-bottom:1px solid var(--line);
-         padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.2px}
+         padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650}
   .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent-2);
               box-shadow:0 0 8px var(--accent-2)}
   .brand small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;
                letter-spacing:.4px;text-transform:uppercase}
   .spacer{flex:1}
   .status{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .langsw{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .langsw button{background:var(--panel-2);border:0;color:var(--muted);
+                 padding:6px 11px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .langsw button+button{border-left:1px solid var(--line)}
+  .langsw button.on{background:var(--accent);color:#1a1206;font-weight:650}
 
   .chips{display:flex;gap:7px;padding:12px 20px;overflow-x:auto;
          background:var(--panel);border-bottom:1px solid var(--line)}
@@ -245,6 +287,9 @@ const PAGE = `<!doctype html>
   .body strong{color:#fff;font-weight:650}
   .body code{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
              padding:1px 5px;font-family:var(--mono);font-size:13px;color:var(--accent)}
+  .body pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+            padding:12px 14px;overflow-x:auto;margin:12px 0}
+  .body pre code{background:none;border:0;padding:0;color:var(--text)}
   .body hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   .body a{color:var(--user)}
   .body blockquote{border-left:3px solid var(--accent);margin:12px 0;padding:2px 14px;
@@ -258,6 +303,13 @@ const PAGE = `<!doctype html>
   .body tr:last-child td{border-bottom:0}
   .body td{font-family:var(--mono);font-size:13px}
   .body td:first-child{font-family:var(--sans)}
+
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+            padding:14px 16px;margin:14px 0}
+  .chartbox .ctitle{font-size:13px;font-weight:650;color:var(--accent);
+                    margin-bottom:10px;letter-spacing:.3px}
+  .chartbox svg{width:100%;height:auto;display:block;overflow:visible}
+  .chartbox .cnote{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.5}
 
   .typing{display:flex;gap:5px;padding:6px 0}
   .typing i{width:7px;height:7px;border-radius:50%;background:var(--accent);
@@ -281,8 +333,9 @@ const PAGE = `<!doctype html>
   .disclaim{max-width:900px;margin:9px auto 0;font-size:11px;color:var(--muted);
             text-align:center;line-height:1.5}
 
-  .gate{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;
+  .gate{position:fixed;inset:0;background:var(--bg);display:none;place-items:center;
         z-index:50;padding:20px}
+  .gate.show{display:grid}
   .gatebox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
            padding:30px;max-width:340px;width:100%;text-align:center}
   .gatebox input{width:100%;margin:16px 0 12px;background:var(--panel-2);
@@ -299,7 +352,7 @@ const PAGE = `<!doctype html>
 </head>
 <body>
 
-<div class="gate" id="gate" style="display:none">
+<div class="gate" id="gate">
   <div class="gatebox">
     <div class="brand" style="justify-content:center">
       <span class="dot"></span><span>Wall Street Analyst</span>
@@ -313,9 +366,10 @@ const PAGE = `<!doctype html>
 <header>
   <div class="brand">
     <span class="dot"></span>
-    <div>Wall Street Analyst<small>Institutional-grade equity research</small></div>
+    <div>Wall Street Analyst<small id="tagline">Institutional-grade equity research</small></div>
   </div>
   <div class="spacer"></div>
+  <div class="langsw" id="langsw"></div>
   <div class="status" id="status">READY</div>
 </header>
 
@@ -324,9 +378,8 @@ const PAGE = `<!doctype html>
 <main>
   <div class="wrap" id="feed">
     <div class="welcome" id="welcome">
-      <h1>Institutional-grade financial analysis</h1>
-      <p>Pick a framework above, then name a company or ticker.<br>
-         Every analysis shows its math, states its assumptions, and gives a bull / base / bear range.</p>
+      <h1 id="wTitle"></h1>
+      <p id="wBody"></p>
       <div class="examples" id="examples"></div>
     </div>
   </div>
@@ -334,131 +387,399 @@ const PAGE = `<!doctype html>
 
 <footer>
   <div class="composer">
-    <textarea id="input" rows="1" placeholder="Ask about any stock, deal, or financial model…"></textarea>
+    <textarea id="input" rows="1"></textarea>
     <button class="send" id="send">Analyse</button>
   </div>
-  <div class="disclaim">
-    Educational analysis only — not investment advice. Figures may be outdated;
-    verify against SEC filings before acting. Consult a licensed advisor.
-  </div>
+  <div class="disclaim" id="disclaim"></div>
 </footer>
 
 <script>
 "use strict";
 
-const FRAMEWORKS = [
-  ["auto","Auto"],["screen","Quick Screen"],["dcf","DCF"],["comps","Comps"],
-  ["3stmt","3-Statement"],["lbo","LBO"],["ma","M&A"],["sotp","SOTP"],
-  ["credit","Credit"],["unit","Unit Economics"],["risk","Sensitivity"],["memo","IC Memo"]
-];
-const EXAMPLES = [
-  ["Full analysis","Analyse NVDA — is it worth buying?","Analyse NVDA. Is it worth buying at the current price?"],
-  ["DCF model","Build a DCF for Apple","Build a DCF valuation for Apple with a sensitivity table."],
-  ["Comps","Compare AMD to its peers","Compare AMD against its semiconductor peers on NTM multiples."],
-  ["中文分析","分析騰訊 0700.HK","分析騰訊 (0700.HK) 嘅估值同主要風險。"]
-];
+/* ===================== i18n ===================== */
+const I18N = {
+  en: {
+    tagline:"Institutional-grade equity research",
+    wTitle:"Institutional-grade financial analysis",
+    wBody:"Pick a framework above, then name a company or ticker. Every analysis shows its math, states its assumptions, and gives a bull / base / bear range.",
+    placeholder:"Ask about any stock, deal, or financial model...",
+    send:"Analyse", ready:"READY", analysing:"ANALYSING...",
+    disclaim:"Educational analysis only \u2014 not investment advice. Figures may be outdated; verify against SEC filings before acting. Consult a licensed advisor.",
+    chips:{auto:"Auto",screen:"Quick Screen",dcf:"DCF",comps:"Comps","3stmt":"3-Statement",
+           lbo:"LBO",ma:"M&A",sotp:"SOTP",credit:"Credit",unit:"Unit Economics",
+           risk:"Sensitivity",memo:"IC Memo"},
+    examples:[
+      ["Full analysis","Analyse NVDA \u2014 is it worth buying?","Analyse NVDA. Is it worth buying at the current price?"],
+      ["DCF model","Build a DCF for Apple","Build a DCF valuation for Apple with a sensitivity table and a football field chart."],
+      ["Comps","Compare AMD to its peers","Compare AMD against its semiconductor peers on NTM multiples, with a bar chart."],
+      ["Scenarios","Bull / base / bear for Tesla","Give bull, base and bear cases for Tesla with a scenario chart."]
+    ]
+  },
+  zh: {
+    tagline:"\u6a5f\u69cb\u7d1a\u80a1\u7968\u7814\u7a76",
+    wTitle:"\u6a5f\u69cb\u7d1a\u91d1\u878d\u5206\u6790",
+    wBody:"\u65bc\u4e0a\u65b9\u63c0\u4e00\u500b\u5206\u6790\u6846\u67b6\uff0c\u7136\u5f8c\u8f38\u5165\u516c\u53f8\u540d\u6216\u80a1\u7968\u4ee3\u865f\u3002\u6bcf\u4efd\u5206\u6790\u90fd\u6703\u5217\u51fa\u8a08\u7b97\u904e\u7a0b\u3001\u8aaa\u660e\u5047\u8a2d\uff0c\u4e26\u7d66\u51fa\u6a02\u89c0 / \u57fa\u672c / \u60b2\u89c0\u4e09\u500b\u60c5\u5883\u3002",
+    placeholder:"\u554f\u4efb\u4f55\u80a1\u7968\u3001\u4ea4\u6613\u6216\u8ca1\u52d9\u6a21\u578b...",
+    send:"\u5206\u6790", ready:"\u5c31\u7dd2", analysing:"\u5206\u6790\u4e2d...",
+    disclaim:"\u50c5\u4f5c\u6559\u80b2\u7528\u9014 \u2014 \u4e26\u975e\u6295\u8cc7\u5efa\u8b70\u3002\u6578\u64da\u53ef\u80fd\u904e\u6642\uff0c\u884c\u52d5\u524d\u8acb\u6838\u5c0d\u5b98\u65b9\u7533\u5831\u6587\u4ef6\uff0c\u4e26\u8aee\u8a62\u6301\u724c\u9867\u554f\u3002",
+    chips:{auto:"\u81ea\u52d5",screen:"\u5feb\u901f\u7be9\u9078",dcf:"DCF \u4f30\u503c",comps:"\u540c\u696d\u6bd4\u8f03",
+           "3stmt":"\u4e09\u5927\u5831\u8868",lbo:"\u69d3\u687f\u6536\u8cfc",ma:"\u4e26\u8cfc",sotp:"\u5206\u90e8\u4f30\u503c",
+           credit:"\u4fe1\u8cb8\u5206\u6790",unit:"\u55ae\u4f4d\u7d93\u6fdf",risk:"\u654f\u611f\u5ea6",memo:"\u6295\u59d4\u6703\u5099\u5fd8\u9304"},
+    examples:[
+      ["\u5b8c\u6574\u5206\u6790","\u5206\u6790 NVDA \u2014 \u503c\u4e0d\u503c\u5f97\u8cb7\uff1f","\u5206\u6790 NVDA\uff0c\u73fe\u50f9\u503c\u4e0d\u503c\u5f97\u6295\u8cc7\uff1f"],
+      ["DCF \u6a21\u578b","\u70ba\u860b\u679c\u5efa\u7acb DCF","\u70ba\u860b\u679c\u5efa\u7acb DCF \u4f30\u503c\uff0c\u9644\u654f\u611f\u5ea6\u8868\u53ca football field \u5716\u8868\u3002"],
+      ["\u540c\u696d\u6bd4\u8f03","AMD \u8207\u540c\u696d\u6bd4\u8f03","\u5c07 AMD \u8207\u534a\u5c0e\u9ad4\u540c\u696d\u4ee5 NTM \u500d\u6578\u6bd4\u8f03\uff0c\u9644\u9577\u689d\u5716\u3002"],
+      ["\u60c5\u5883\u5206\u6790","Tesla \u6a02\u89c0/\u57fa\u672c/\u60b2\u89c0","\u7d66\u51fa Tesla \u7684\u6a02\u89c0\u3001\u57fa\u672c\u3001\u60b2\u89c0\u60c5\u5883\uff0c\u9644\u60c5\u5883\u5716\u8868\u3002"]
+    ]
+  }
+};
+I18N.both = JSON.parse(JSON.stringify(I18N.zh));
+I18N.both.tagline = "Institutional-grade equity research / " + I18N.zh.tagline;
 
-let framework = "auto", history = [], busy = false, password = "";
+const LANG_INSTRUCTION = {
+  en:"Reply in English.",
+  zh:"Reply in Traditional Chinese, Hong Kong style. Keep standard finance terms (EBITDA, WACC, DCF, EV/EBITDA) in English.",
+  both:"Reply BILINGUALLY. For every heading, paragraph and bullet, give the English first, then the Traditional Chinese (Hong Kong style) immediately beneath it. In tables, write headers as 'English / \u4e2d\u6587' in the same cell rather than duplicating the table. Keep standard finance terms in English."
+};
+
+/* ===================== config ===================== */
+const CHIP_ORDER = ["auto","screen","dcf","comps","3stmt","lbo","ma","sotp","credit","unit","risk","memo"];
+let lang = "en", framework = "auto", history = [], busy = false, password = "";
 const $ = id => document.getElementById(id);
 
-/* ---------------------------------------------------------------
-   SECURITY MODEL for rendering model output.
-   Untrusted text (API replies, user input) is ALWAYS run through
-   esc() first, which neutralises < > & " and '. Only after that do
-   we add markup tags that this file itself generates. Because quotes
-   are escaped, text can never break out of an HTML attribute, and
-   link hrefs are additionally restricted to http/https.
-   --------------------------------------------------------------- */
-const ESC_MAP = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
-function esc(s){ return String(s).replace(/[&<>"']/g, c => ESC_MAP[c]); }
+/* ===================== markdown renderer =====================
+   Builds real DOM nodes. All model text enters via textContent and
+   link hrefs are scheme-checked, so markup can only originate from
+   the createElement calls below - there is no injection surface.
+   ============================================================= */
+function safeUrl(u){ return /^https?:\\/\\//i.test(u) ? u : "#"; }
 
-function safeUrl(u){
-  // u is already escaped, so quotes are inert; still restrict the scheme.
-  return /^https?:\\/\\//i.test(u) ? u : "#";
+const INLINE_RE = /(\`[^\`]+\`)|(\\*\\*[^*]+\\*\\*)|(\\*[^*\\n]+\\*)|(\\[[^\\]]+\\]\\([^)\\s]+\\))/g;
+const LINK_RE = /^\\[([^\\]]+)\\]\\(([^)\\s]+)\\)$/;
+
+function appendInline(parent, text){
+  let last = 0;
+  for(const m of String(text).matchAll(INLINE_RE)){
+    if(m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const tok = m[0];
+    let el;
+    if(tok.charAt(0) === "\`"){
+      el = document.createElement("code"); el.textContent = tok.slice(1,-1);
+    } else if(tok.slice(0,2) === "**"){
+      el = document.createElement("strong"); el.textContent = tok.slice(2,-2);
+    } else if(tok.charAt(0) === "["){
+      const p = tok.match(LINK_RE);
+      el = document.createElement("a");
+      el.textContent = p[1];
+      el.setAttribute("href", safeUrl(p[2]));
+      el.setAttribute("target","_blank");
+      el.setAttribute("rel","noopener noreferrer");
+    } else {
+      el = document.createElement("em"); el.textContent = tok.slice(1,-1);
+    }
+    parent.appendChild(el);
+    last = m.index + tok.length;
+  }
+  if(last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
 }
 
-function inline(s){
-  return esc(s)
-    .replace(/\`([^\`]+)\`/g, "<code>$1</code>")
-    .replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>")
-    .replace(/(^|[^*])\\*([^*]+)\\*/g, "$1<em>$2</em>")
-    .replace(/\\[([^\\]]+)\\]\\(([^)\\s]+)\\)/g,
-      (m, label, url) => '<a href="' + safeUrl(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>');
+function splitRow(r){ return r.trim().replace(/^\\||\\|$/g,"").split("|").map(c=>c.trim()); }
+
+/* ---------- SVG charts ---------- */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function svgText(x, y, str, attrs){
+  const t = svgEl("text", Object.assign({x:x, y:y}, attrs || {}));
+  t.textContent = str;
+  return t;
+}
+function fmt(n, unit){
+  const s = (Math.abs(n) >= 1000) ? Math.round(n).toLocaleString() :
+            (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(1));
+  if(unit === "x") return s + "x";
+  if(unit === "%") return s + "%";
+  if(unit === "$") return "$" + s;
+  return unit ? s + " " + unit : s;
 }
 
-function md(src){
+/** Horizontal range bars with an optional marker - the banker's "football field". */
+function chartFootball(spec){
+  const rows = spec.series || [];
+  if(!rows.length) return null;
+  const W = 700, rowH = 38, padL = 130, padR = 60, top = 14;
+  const H = top + rows.length * rowH + 30;
+  let lo = Infinity, hi = -Infinity;
+  rows.forEach(r => { lo = Math.min(lo, r.low); hi = Math.max(hi, r.high); });
+  if(spec.marker && typeof spec.marker.value === "number"){
+    lo = Math.min(lo, spec.marker.value); hi = Math.max(hi, spec.marker.value);
+  }
+  const span = (hi - lo) || 1;
+  lo -= span * 0.12; hi += span * 0.12;
+  const X = v => padL + ((v - lo) / (hi - lo)) * (W - padL - padR);
+
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    svg.appendChild(svgText(padL - 10, y + 19, r.label,
+      {fill:"#8b98a5","font-size":"12","text-anchor":"end","font-family":"sans-serif"}));
+    const x1 = X(r.low), x2 = X(r.high);
+    svg.appendChild(svgEl("rect", {x:x1, y:y + 6, width:Math.max(2, x2 - x1), height:20,
+      rx:4, fill:"#d4a24a", opacity:"0.75"}));
+    svg.appendChild(svgText(x1 - 5, y + 20, fmt(r.low, spec.unit),
+      {fill:"#8b98a5","font-size":"10.5","text-anchor":"end","font-family":"monospace"}));
+    svg.appendChild(svgText(x2 + 5, y + 20, fmt(r.high, spec.unit),
+      {fill:"#8b98a5","font-size":"10.5","font-family":"monospace"}));
+  });
+  if(spec.marker && typeof spec.marker.value === "number"){
+    const mx = X(spec.marker.value);
+    svg.appendChild(svgEl("line", {x1:mx, y1:top - 4, x2:mx, y2:top + rows.length * rowH + 2,
+      stroke:"#f85149","stroke-width":"2","stroke-dasharray":"4 3"}));
+    svg.appendChild(svgText(mx, top + rows.length * rowH + 18,
+      (spec.marker.label || "Current") + " " + fmt(spec.marker.value, spec.unit),
+      {fill:"#f85149","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  }
+  return svg;
+}
+
+/** Vertical bars for peer multiples and similar comparisons. */
+function chartBar(spec){
+  const d = spec.data || [];
+  if(!d.length) return null;
+  const W = 700, H = 260, padL = 46, padB = 46, top = 16;
+  const max = Math.max.apply(null, d.map(x => x.value)) * 1.15 || 1;
+  const bw = (W - padL - 16) / d.length;
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  for(let g = 0; g <= 4; g++){
+    const y = top + (H - top - padB) * (g / 4);
+    const val = max * (1 - g / 4);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W - 8, y2:y,
+      stroke:"#263341","stroke-width":"1"}));
+    svg.appendChild(svgText(padL - 7, y + 4, fmt(val, spec.unit),
+      {fill:"#8b98a5","font-size":"10","text-anchor":"end","font-family":"monospace"}));
+  }
+  d.forEach((it, i) => {
+    const h = ((it.value / max) * (H - top - padB));
+    const x = padL + i * bw + bw * 0.18;
+    const w = bw * 0.64;
+    const y = H - padB - h;
+    svg.appendChild(svgEl("rect", {x:x, y:y, width:w, height:Math.max(1, h), rx:3,
+      fill: it.highlight ? "#3fb950" : "#d4a24a", opacity: it.highlight ? "0.95" : "0.75"}));
+    svg.appendChild(svgText(x + w / 2, y - 6, fmt(it.value, spec.unit),
+      {fill:"#e6edf3","font-size":"11","text-anchor":"middle","font-family":"monospace"}));
+    svg.appendChild(svgText(x + w / 2, H - padB + 16, it.label,
+      {fill:"#8b98a5","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  });
+  return svg;
+}
+
+/** Bear / base / bull columns against the current price. */
+function chartScenario(spec){
+  const order = [["bear","#f85149"],["base","#8b98a5"],["bull","#3fb950"]];
+  const items = order.filter(o => typeof spec[o[0]] === "number")
+                     .map(o => ({label:o[0], value:spec[o[0]], color:o[1]}));
+  if(!items.length) return null;
+  const W = 700, H = 250, padL = 46, padB = 46, top = 16;
+  let max = Math.max.apply(null, items.map(i => i.value));
+  if(typeof spec.current === "number") max = Math.max(max, spec.current);
+  max *= 1.18;
+  const bw = (W - padL - 16) / items.length;
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  const Y = v => H - padB - (v / max) * (H - top - padB);
+  items.forEach((it, i) => {
+    const x = padL + i * bw + bw * 0.24, w = bw * 0.52, y = Y(it.value);
+    svg.appendChild(svgEl("rect", {x:x, y:y, width:w, height:Math.max(1, H - padB - y),
+      rx:3, fill:it.color, opacity:"0.8"}));
+    svg.appendChild(svgText(x + w / 2, y - 6, fmt(it.value, spec.unit),
+      {fill:"#e6edf3","font-size":"12","text-anchor":"middle","font-family":"monospace"}));
+    svg.appendChild(svgText(x + w / 2, H - padB + 17,
+      (spec.labels && spec.labels[it.label]) || it.label.toUpperCase(),
+      {fill:"#8b98a5","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  });
+  if(typeof spec.current === "number"){
+    const y = Y(spec.current);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W - 8, y2:y,
+      stroke:"#1f6feb","stroke-width":"2","stroke-dasharray":"5 3"}));
+    svg.appendChild(svgText(W - 10, y - 6,
+      (spec.currentLabel || "Current") + " " + fmt(spec.current, spec.unit),
+      {fill:"#1f6feb","font-size":"11","text-anchor":"end","font-family":"sans-serif"}));
+  }
+  return svg;
+}
+
+function renderChart(spec){
+  let svg = null;
+  try{
+    if(spec.type === "football") svg = chartFootball(spec);
+    else if(spec.type === "bar") svg = chartBar(spec);
+    else if(spec.type === "scenario") svg = chartScenario(spec);
+  }catch(e){ svg = null; }
+  if(!svg) return null;
+  const box = document.createElement("div");
+  box.className = "chartbox";
+  if(spec.title){
+    const t = document.createElement("div");
+    t.className = "ctitle"; t.textContent = spec.title;
+    box.appendChild(t);
+  }
+  box.appendChild(svg);
+  if(spec.note){
+    const n = document.createElement("div");
+    n.className = "cnote"; n.textContent = spec.note;
+    box.appendChild(n);
+  }
+  return box;
+}
+
+function renderMarkdown(src){
+  const frag = document.createDocumentFragment();
   const lines = String(src).replace(/\\r/g,"").split("\\n");
-  let out = "", i = 0;
   const isRow = s => /^\\s*\\|.*\\|\\s*$/.test(s);
+  let i = 0;
+
   while(i < lines.length){
     const L = lines[i];
     if(!L.trim()){ i++; continue; }
 
-    // table: header row + separator row + body rows
-    if(isRow(L) && isRow(lines[i+1] || "") && /^[\\s|:\\-]+$/.test(lines[i+1])){
-      const cells = r => r.trim().replace(/^\\||\\|$/g,"").split("|").map(c => inline(c.trim()));
-      let html = "<div class='tablewrap'><table><thead><tr>" +
-                 cells(L).map(c => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>";
-      i += 2;
-      while(i < lines.length && isRow(lines[i])){
-        html += "<tr>" + cells(lines[i]).map(c => "<td>" + c + "</td>").join("") + "</tr>";
-        i++;
+    // fenced block: \`\`\`chart renders a graphic, anything else is code
+    const fence = L.match(/^\\s*\`\`\`\\s*(\\w*)\\s*$/);
+    if(fence){
+      const kind = (fence[1] || "").toLowerCase();
+      const buf = [];
+      i++;
+      while(i < lines.length && !/^\\s*\`\`\`\\s*$/.test(lines[i])){ buf.push(lines[i]); i++; }
+      i++; // closing fence
+      const raw = buf.join("\\n");
+      if(kind === "chart"){
+        let spec = null;
+        try{ spec = JSON.parse(raw); }catch(e){ spec = null; }
+        const c = spec ? renderChart(spec) : null;
+        if(c){ frag.appendChild(c); continue; }
       }
-      out += html + "</tbody></table></div>";
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.textContent = raw;
+      pre.appendChild(code);
+      frag.appendChild(pre);
       continue;
     }
-    let m;
-    if((m = L.match(/^(#{1,3})\\s+(.*)/))){
-      const n = m[1].length;
-      out += "<h" + n + ">" + inline(m[2]) + "</h" + n + ">"; i++; continue;
+
+    if(isRow(L) && isRow(lines[i+1] || "") && /^[\\s|:\\-]+$/.test(lines[i+1])){
+      const wrap = document.createElement("div");
+      wrap.className = "tablewrap";
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const hrow = document.createElement("tr");
+      splitRow(L).forEach(c => { const th = document.createElement("th"); appendInline(th,c); hrow.appendChild(th); });
+      thead.appendChild(hrow); table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      i += 2;
+      while(i < lines.length && isRow(lines[i])){
+        const tr = document.createElement("tr");
+        splitRow(lines[i]).forEach(c => { const td = document.createElement("td"); appendInline(td,c); tr.appendChild(td); });
+        tbody.appendChild(tr); i++;
+      }
+      table.appendChild(tbody); wrap.appendChild(table); frag.appendChild(wrap);
+      continue;
     }
-    if(/^\\s*([-*_])\\s*\\1\\s*\\1[\\s\\-*_]*$/.test(L)){ out += "<hr>"; i++; continue; }
+
+    const head = L.match(/^(#{1,3})\\s+(.*)/);
+    if(head){
+      const h = document.createElement("h" + head[1].length);
+      appendInline(h, head[2]); frag.appendChild(h); i++; continue;
+    }
+    if(/^\\s*([-*_])\\s*\\1\\s*\\1[\\s\\-*_]*$/.test(L)){
+      frag.appendChild(document.createElement("hr")); i++; continue;
+    }
     if(/^\\s*>/.test(L)){
       const buf = [];
       while(i < lines.length && /^\\s*>/.test(lines[i])){ buf.push(lines[i].replace(/^\\s*>\\s?/,"")); i++; }
-      out += "<blockquote>" + md(buf.join("\\n")) + "</blockquote>"; continue;
+      const bq = document.createElement("blockquote");
+      bq.appendChild(renderMarkdown(buf.join("\\n")));
+      frag.appendChild(bq); continue;
     }
     if(/^\\s*([-*+]|\\d+\\.)\\s+/.test(L)){
       const ordered = /^\\s*\\d+\\./.test(L);
-      const buf = [];
+      const list = document.createElement(ordered ? "ol" : "ul");
       while(i < lines.length && /^\\s*([-*+]|\\d+\\.)\\s+/.test(lines[i])){
-        buf.push(inline(lines[i].replace(/^\\s*([-*+]|\\d+\\.)\\s+/,""))); i++;
+        const li = document.createElement("li");
+        appendInline(li, lines[i].replace(/^\\s*([-*+]|\\d+\\.)\\s+/,""));
+        list.appendChild(li); i++;
       }
-      out += (ordered ? "<ol>" : "<ul>") + buf.map(x => "<li>" + x + "</li>").join("") +
-             (ordered ? "</ol>" : "</ul>");
-      continue;
+      frag.appendChild(list); continue;
     }
     const buf = [];
     while(i < lines.length && lines[i].trim() && !isRow(lines[i]) &&
-          !/^\\s*(#{1,3}\\s|>|[-*+]\\s|\\d+\\.\\s)/.test(lines[i])){ buf.push(lines[i]); i++; }
-    if(buf.length) out += "<p>" + inline(buf.join(" ")) + "</p>";
+          !/^\\s*(\`\`\`|#{1,3}\\s|>|[-*+]\\s|\\d+\\.\\s)/.test(lines[i])){ buf.push(lines[i]); i++; }
+    if(buf.length){
+      const p = document.createElement("p");
+      appendInline(p, buf.join(" ")); frag.appendChild(p);
+    }
   }
-  return out;
+  return frag;
 }
 
-/* ---- UI construction (no innerHTML with untrusted values) ---- */
-FRAMEWORKS.forEach(([id, label], idx) => {
-  const c = document.createElement("div");
-  c.className = "chip" + (idx === 0 ? " on" : "");
-  c.textContent = label;
-  c.onclick = () => {
-    framework = id;
-    document.querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
-    c.classList.add("on");
-  };
-  $("chips").appendChild(c);
-});
+/* ===================== UI ===================== */
+function buildLangSwitch(){
+  const sw = $("langsw");
+  while(sw.firstChild) sw.removeChild(sw.firstChild);
+  [["en","EN"],["zh","\u4e2d"],["both","\u4e2d/EN"]].forEach(([code,label]) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if(code === lang) b.className = "on";
+    b.onclick = () => { lang = code; try{ localStorage.setItem("wsa_lang", code); }catch(e){} applyLang(); };
+    sw.appendChild(b);
+  });
+}
 
-EXAMPLES.forEach(([tag, label, prompt]) => {
-  const d = document.createElement("div");
-  d.className = "ex";
-  const b = document.createElement("b");
-  b.textContent = tag;
-  d.appendChild(b);
-  d.appendChild(document.createTextNode(label));
-  d.onclick = () => { $("input").value = prompt; $("input").focus(); };
-  $("examples").appendChild(d);
-});
+function buildChips(){
+  const box = $("chips");
+  while(box.firstChild) box.removeChild(box.firstChild);
+  const t = I18N[lang];
+  CHIP_ORDER.forEach(id => {
+    const c = document.createElement("div");
+    c.className = "chip" + (id === framework ? " on" : "");
+    c.textContent = t.chips[id];
+    c.onclick = () => {
+      framework = id;
+      document.querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
+      c.classList.add("on");
+    };
+    box.appendChild(c);
+  });
+}
+
+function buildExamples(){
+  const box = $("examples");
+  if(!box) return;
+  while(box.firstChild) box.removeChild(box.firstChild);
+  I18N[lang].examples.forEach(([tag,label,prompt]) => {
+    const d = document.createElement("div");
+    d.className = "ex";
+    const b = document.createElement("b");
+    b.textContent = tag;
+    d.appendChild(b);
+    d.appendChild(document.createTextNode(label));
+    d.onclick = () => { $("input").value = prompt; $("input").focus(); };
+    box.appendChild(d);
+  });
+}
+
+function applyLang(){
+  const t = I18N[lang];
+  $("tagline").textContent = t.tagline;
+  $("input").placeholder = t.placeholder;
+  $("send").textContent = t.send;
+  $("status").textContent = busy ? t.analysing : t.ready;
+  $("disclaim").textContent = t.disclaim;
+  if($("wTitle")) $("wTitle").textContent = t.wTitle;
+  if($("wBody")) $("wBody").textContent = t.wBody;
+  document.documentElement.lang = (lang === "en") ? "en" : "zh-HK";
+  buildLangSwitch(); buildChips(); buildExamples();
+}
 
 function bubble(role, node){
   const w = $("welcome"); if(w) w.remove();
@@ -475,33 +796,26 @@ function bubble(role, node){
   d.scrollIntoView({behavior:"smooth", block:"end"});
   return body;
 }
-
-function textNode(text){
+function textNode(t){
   const p = document.createElement("p");
-  p.textContent = text;          // plain text, no markup path at all
-  p.style.whiteSpace = "pre-wrap";
-  return p;
+  p.textContent = t; p.style.whiteSpace = "pre-wrap"; return p;
 }
 function typingNode(){
-  const t = document.createElement("div");
-  t.className = "typing";
+  const t = document.createElement("div"); t.className = "typing";
   t.appendChild(document.createElement("i"));
   t.appendChild(document.createElement("i"));
   t.appendChild(document.createElement("i"));
   return t;
 }
-function errorNode(msg){
-  const e = document.createElement("div");
-  e.className = "err";
-  e.textContent = msg;           // plain text
-  return e;
+function errorNode(m){
+  const e = document.createElement("div"); e.className = "err"; e.textContent = m; return e;
 }
+function clearNode(n){ while(n.firstChild) n.removeChild(n.firstChild); }
 
 async function send(){
   const box = $("input"), text = box.value.trim();
   if(!text || busy) return;
-  busy = true; $("send").disabled = true; $("status").textContent = "ANALYSING…";
-
+  busy = true; $("send").disabled = true; $("status").textContent = I18N[lang].analysing;
   bubble("user", textNode(text));
   box.value = ""; box.style.height = "auto";
   history.push({role:"user", content:text});
@@ -509,25 +823,22 @@ async function send(){
   const pending = bubble("bot", typingNode());
   try{
     const r = await fetch("/api/chat", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({messages:history, framework, password})
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({messages:history, framework:framework, lang:lang, password:password})
     });
     const data = await r.json();
-    pending.textContent = "";
+    clearNode(pending);
     if(!r.ok || data.error){
       pending.appendChild(errorNode(data.error || "Request failed."));
     } else {
-      // data.reply passes through md() -> inline() -> esc(): fully escaped
-      // before any tag this file generates is added.
-      pending.innerHTML = md(data.reply);
+      pending.appendChild(renderMarkdown(data.reply));
       history.push({role:"assistant", content:data.reply});
     }
   }catch(e){
-    pending.textContent = "";
+    clearNode(pending);
     pending.appendChild(errorNode("Network error: " + e.message));
   }
-  busy = false; $("send").disabled = false; $("status").textContent = "READY";
+  busy = false; $("send").disabled = false; $("status").textContent = I18N[lang].ready;
   pending.scrollIntoView({behavior:"smooth", block:"end"});
 }
 
@@ -543,14 +854,18 @@ $("input").addEventListener("input", function(){
 function unlock(){
   password = $("pw").value;
   if(!password){ $("gateErr").textContent = "Enter the password."; return; }
-  $("gate").style.display = "none";
+  $("gate").classList.remove("show");
   $("input").focus();
 }
 $("unlockBtn").onclick = unlock;
 $("pw").addEventListener("keydown", e => { if(e.key === "Enter") unlock(); });
 
+try{ lang = localStorage.getItem("wsa_lang") || "en"; }catch(e){ lang = "en"; }
+if(!I18N[lang]) lang = "en";
+applyLang();
+
 fetch("/api/config").then(r => r.json()).then(c => {
-  if(c.requires_password){ $("gate").style.display = "grid"; $("pw").focus(); }
+  if(c.requires_password){ $("gate").classList.add("show"); $("pw").focus(); }
   else $("input").focus();
 }).catch(() => {});
 </script>
@@ -561,19 +876,13 @@ fetch("/api/config").then(r => r.json()).then(c => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-
     if (url.pathname === "/api/config") {
       return json({ requires_password: Boolean(env.ACCESS_PASSWORD) });
     }
-
     if (url.pathname === "/api/chat") {
-      if (request.method !== "POST") {
-        return json({ error: "Method not allowed." }, 405);
-      }
+      if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
       return handleChat(request, env);
     }
-
-    // Every other path returns the single-page app.
     return new Response(PAGE, {
       headers: { "content-type": "text/html; charset=utf-8" },
     });

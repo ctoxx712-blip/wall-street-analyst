@@ -4,20 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wall Street Analyst</title>
-<!--
-  GitHub Pages edition - no server required.
-
-  Your Anthropic API key is stored ONLY in this browser's localStorage on this
-  device, and is sent ONLY to api.anthropic.com. It never touches GitHub, this
-  page's author, or any third-party server. Clear it any time with the gear icon.
--->
 <style>
   :root{
     --bg:#0d1117; --panel:#141b24; --panel-2:#1b2430; --line:#263341;
     --text:#e6edf3; --muted:#8b98a5; --accent:#d4a24a; --accent-2:#3fb950;
-    --danger:#f85149; --user:#1f6feb;
+    --danger:#f85149; --user:#1f6feb; --bear:#f85149; --base:#8b98a5; --bull:#3fb950;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang HK","Microsoft JhengHei",sans-serif;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -25,17 +18,20 @@
        display:flex;flex-direction:column;font-size:15px;line-height:1.6}
 
   header{background:var(--panel);border-bottom:1px solid var(--line);
-         padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.2px}
+         padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650}
   .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent-2);
               box-shadow:0 0 8px var(--accent-2)}
   .brand small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;
                letter-spacing:.4px;text-transform:uppercase}
   .spacer{flex:1}
   .status{font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .gear{background:none;border:1px solid var(--line);color:var(--muted);
-        border-radius:7px;width:32px;height:32px;cursor:pointer;font-size:15px;line-height:1}
-  .gear:hover{border-color:var(--accent);color:var(--text)}
+
+  .langsw{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .langsw button{background:var(--panel-2);border:0;color:var(--muted);
+                 padding:6px 11px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .langsw button+button{border-left:1px solid var(--line)}
+  .langsw button.on{background:var(--accent);color:#1a1206;font-weight:650}
 
   .chips{display:flex;gap:7px;padding:12px 20px;overflow-x:auto;
          background:var(--panel);border-bottom:1px solid var(--line)}
@@ -77,6 +73,9 @@
   .body strong{color:#fff;font-weight:650}
   .body code{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
              padding:1px 5px;font-family:var(--mono);font-size:13px;color:var(--accent)}
+  .body pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+            padding:12px 14px;overflow-x:auto;margin:12px 0}
+  .body pre code{background:none;border:0;padding:0;color:var(--text)}
   .body hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   .body a{color:var(--user)}
   .body blockquote{border-left:3px solid var(--accent);margin:12px 0;padding:2px 14px;
@@ -90,6 +89,13 @@
   .body tr:last-child td{border-bottom:0}
   .body td{font-family:var(--mono);font-size:13px}
   .body td:first-child{font-family:var(--sans)}
+
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+            padding:14px 16px;margin:14px 0}
+  .chartbox .ctitle{font-size:13px;font-weight:650;color:var(--accent);
+                    margin-bottom:10px;letter-spacing:.3px}
+  .chartbox svg{width:100%;height:auto;display:block;overflow:visible}
+  .chartbox .cnote{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.5}
 
   .typing{display:flex;gap:5px;padding:6px 0}
   .typing i{width:7px;height:7px;border-radius:50%;background:var(--accent);
@@ -113,25 +119,28 @@
   .disclaim{max-width:900px;margin:9px auto 0;font-size:11px;color:var(--muted);
             text-align:center;line-height:1.5}
 
+  .gear{background:none;border:1px solid var(--line);color:var(--muted);
+        border-radius:7px;width:32px;height:32px;cursor:pointer;font-size:15px;line-height:1}
+  .gear:hover{border-color:var(--accent);color:var(--text)}
+  .privacy{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+           padding:12px 14px;margin-top:14px;font-size:12px;color:var(--muted);
+           line-height:1.65;text-align:left}
+  .privacy b{color:var(--accent-2)}
+  .privacy code{font-family:var(--mono);color:var(--accent)}
+  .gatebox h2{margin:16px 0 6px;font-size:18px}
+  .gatebox p{color:var(--muted);font-size:13px;margin:8px 0;line-height:1.6}
+  .gatebox .ghost{background:none;border:1px solid var(--line);color:var(--muted);margin-top:8px}
   .gate{position:fixed;inset:0;background:var(--bg);display:none;place-items:center;
         z-index:50;padding:20px;overflow-y:auto}
   .gate.show{display:grid}
   .gatebox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-           padding:28px;max-width:430px;width:100%}
-  .gatebox h2{margin:16px 0 6px;font-size:18px;text-align:center}
-  .gatebox p{color:var(--muted);font-size:13px;margin:8px 0;line-height:1.6;text-align:center}
-  .gatebox input{width:100%;margin:14px 0 10px;background:var(--panel-2);
+           padding:30px;max-width:340px;width:100%;text-align:center}
+  .gatebox input{width:100%;margin:16px 0 12px;background:var(--panel-2);
                  border:1px solid var(--line);color:var(--text);padding:11px 14px;
-                 border-radius:8px;font-size:13.5px;font-family:var(--mono)}
+                 border-radius:8px;font-size:14.5px}
   .gatebox input:focus{outline:0;border-color:var(--accent)}
   .gatebox button{width:100%;background:var(--accent);color:#1a1206;border:0;
                   padding:11px;border-radius:8px;font-weight:650;cursor:pointer;font-size:14.5px}
-  .gatebox .ghost{background:none;border:1px solid var(--line);color:var(--muted);
-                  margin-top:8px}
-  .privacy{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-           padding:12px 14px;margin-top:14px;font-size:12px;color:var(--muted);line-height:1.65}
-  .privacy b{color:var(--accent-2)}
-  .privacy code{font-family:var(--mono);color:var(--accent)}
   @media(max-width:640px){
     main{padding:16px 13px} header{padding:12px 14px}
     .body td,.body th{white-space:normal}
@@ -145,18 +154,18 @@
     <div class="brand" style="justify-content:center">
       <span class="dot"></span><span>Wall Street Analyst</span>
     </div>
-    <h2>Connect your Anthropic key</h2>
-    <p>This site has no server, so it uses your own API key to talk to Claude directly.</p>
+    <h2 id="gateTitle">Connect your Anthropic key</h2>
+    <p id="gateSub">This site has no server, so it uses your own API key to talk to Claude directly.</p>
     <input type="password" id="key" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
     <button id="saveKey">Save and start</button>
     <button class="ghost" id="clearKey" style="display:none">Forget stored key</button>
     <div id="gateErr" style="color:var(--danger);font-size:12.5px;margin-top:10px"></div>
     <div class="privacy">
-      <b>Where your key goes.</b> It is saved in this browser's local storage on this
-      device only, and sent straight to <code>api.anthropic.com</code>. It is never
-      sent to GitHub, to the author of this page, or to any other server. Avoid using
-      a shared or public computer. Get a key at
-      <a href="https://console.anthropic.com/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.
+      <b>Where your key goes.</b> Saved in this browser's local storage on this device
+      only, and sent straight to <code>api.anthropic.com</code>. Never sent to GitHub,
+      to the author of this page, or to any other server. Avoid shared computers.
+      Get a key at <a href="https://console.anthropic.com/keys" target="_blank"
+      rel="noopener noreferrer">console.anthropic.com</a>.
     </div>
   </div>
 </div>
@@ -164,9 +173,10 @@
 <header>
   <div class="brand">
     <span class="dot"></span>
-    <div>Wall Street Analyst<small>Institutional-grade equity research</small></div>
+    <div>Wall Street Analyst<small id="tagline">Institutional-grade equity research</small></div>
   </div>
   <div class="spacer"></div>
+  <div class="langsw" id="langsw"></div>
   <div class="status" id="status">READY</div>
   <button class="gear" id="gear" title="API key settings">&#9881;</button>
 </header>
@@ -176,9 +186,8 @@
 <main>
   <div class="wrap" id="feed">
     <div class="welcome" id="welcome">
-      <h1>Institutional-grade financial analysis</h1>
-      <p>Pick a framework above, then name a company or ticker.<br>
-         Every analysis shows its math, states its assumptions, and gives a bull / base / bear range.</p>
+      <h1 id="wTitle"></h1>
+      <p id="wBody"></p>
       <div class="examples" id="examples"></div>
     </div>
   </div>
@@ -186,21 +195,63 @@
 
 <footer>
   <div class="composer">
-    <textarea id="input" rows="1" placeholder="Ask about any stock, deal, or financial model…"></textarea>
+    <textarea id="input" rows="1"></textarea>
     <button class="send" id="send">Analyse</button>
   </div>
-  <div class="disclaim">
-    Educational analysis only — not investment advice. Figures may be outdated;
-    verify against SEC filings before acting. Consult a licensed advisor.
-  </div>
+  <div class="disclaim" id="disclaim"></div>
 </footer>
 
 <script>
 "use strict";
 
-const MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 4000;
-const STORE = "wsa_api_key";
+/* ===================== i18n ===================== */
+const I18N = {
+  en: {
+    tagline:"Institutional-grade equity research",
+    wTitle:"Institutional-grade financial analysis",
+    wBody:"Pick a framework above, then name a company or ticker. Every analysis shows its math, states its assumptions, and gives a bull / base / bear range.",
+    placeholder:"Ask about any stock, deal, or financial model...",
+    send:"Analyse", ready:"READY", analysing:"ANALYSING...",
+    disclaim:"Educational analysis only — not investment advice. Figures may be outdated; verify against SEC filings before acting. Consult a licensed advisor.",
+    chips:{auto:"Auto",screen:"Quick Screen",dcf:"DCF",comps:"Comps","3stmt":"3-Statement",
+           lbo:"LBO",ma:"M&A",sotp:"SOTP",credit:"Credit",unit:"Unit Economics",
+           risk:"Sensitivity",memo:"IC Memo"},
+    examples:[
+      ["Full analysis","Analyse NVDA — is it worth buying?","Analyse NVDA. Is it worth buying at the current price?"],
+      ["DCF model","Build a DCF for Apple","Build a DCF valuation for Apple with a sensitivity table and a football field chart."],
+      ["Comps","Compare AMD to its peers","Compare AMD against its semiconductor peers on NTM multiples, with a bar chart."],
+      ["Scenarios","Bull / base / bear for Tesla","Give bull, base and bear cases for Tesla with a scenario chart."]
+    ]
+  },
+  zh: {
+    tagline:"機構級股票研究",
+    wTitle:"機構級金融分析",
+    wBody:"於上方揀一個分析框架，然後輸入公司名或股票代號。每份分析都會列出計算過程、說明假設，並給出樂觀 / 基本 / 悲觀三個情境。",
+    placeholder:"問任何股票、交易或財務模型...",
+    send:"分析", ready:"就緒", analysing:"分析中...",
+    disclaim:"僅作教育用途 — 並非投資建議。數據可能過時，行動前請核對官方申報文件，並諮詢持牌顧問。",
+    chips:{auto:"自動",screen:"快速篩選",dcf:"DCF 估值",comps:"同業比較",
+           "3stmt":"三大報表",lbo:"槓桿收購",ma:"並購",sotp:"分部估值",
+           credit:"信貸分析",unit:"單位經濟",risk:"敏感度",memo:"投委會備忘錄"},
+    examples:[
+      ["完整分析","分析 NVDA — 值不值得買？","分析 NVDA，現價值不值得投資？"],
+      ["DCF 模型","為蘋果建立 DCF","為蘋果建立 DCF 估值，附敏感度表及 football field 圖表。"],
+      ["同業比較","AMD 與同業比較","將 AMD 與半導體同業以 NTM 倍數比較，附長條圖。"],
+      ["情境分析","Tesla 樂觀/基本/悲觀","給出 Tesla 的樂觀、基本、悲觀情境，附情境圖表。"]
+    ]
+  }
+};
+I18N.both = JSON.parse(JSON.stringify(I18N.zh));
+I18N.both.tagline = "Institutional-grade equity research / " + I18N.zh.tagline;
+
+const LANG_INSTRUCTION = {
+  en:"Reply in English.",
+  zh:"Reply in Traditional Chinese, Hong Kong style. Keep standard finance terms (EBITDA, WACC, DCF, EV/EBITDA) in English.",
+  both:"Reply BILINGUALLY. For every heading, paragraph and bullet, give the English first, then the Traditional Chinese (Hong Kong style) immediately beneath it. In tables, write headers as 'English / 中文' in the same cell rather than duplicating the table. Keep standard finance terms in English."
+};
+
+/* ============ prompts (client-side in this build) ============ */
+const MODEL = "claude-opus-4-8", MAX_TOKENS = 4000, STORE = "wsa_api_key";
 
 const BASE_SYSTEM = [
 "You are a senior Wall Street analyst producing institutional-grade financial analysis,",
@@ -216,14 +267,35 @@ const BASE_SYSTEM = [
 "- PICK THE RIGHT METRIC FOR THE SECTOR: banks use P/TBV and ROTCE (not EV/EBITDA);",
 "  REITs use P/FFO and NAV (not P/E); biotech uses risk-adjusted NPV; SaaS uses",
 "  EV/ARR, NRR and Rule of 40; E&P uses EV/EBITDAX and reserve life.",
-"- STATE DATA VINTAGE. If you are unsure whether a figure is current, say so and tell",
-"  the user to verify against the latest SEC filing or investor-relations page.",
+"- STATE DATA VINTAGE. If unsure whether a figure is current, say so and tell the user",
+"  to verify against the latest SEC filing or investor-relations page.",
 "",
 "Always close with a short, plain disclaimer: this is educational analysis, not",
 "investment advice, and the user should verify figures and consult a licensed advisor.",
 "",
-"If the user writes in Chinese, reply in Traditional Chinese (Hong Kong style).",
-"Otherwise reply in the user's language. Keep formatting clean and readable."
+"CHARTS. The interface renders charts from fenced ```chart blocks containing JSON.",
+"Include one or two whenever they genuinely aid understanding - especially a football",
+"field for a valuation range, a bar chart for peer multiples, and a scenario chart for",
+"bull/base/bear. Emit raw JSON only, no comments. Supported shapes:",
+"",
+"```chart",
+'{"type":"football","title":"Valuation range","unit":"$",',
+' "series":[{"label":"DCF","low":120,"high":180},{"label":"Comps","low":140,"high":205}],',
+' "marker":{"label":"Current","value":155},"note":"optional caption"}',
+"```",
+"",
+"```chart",
+'{"type":"bar","title":"EV/EBITDA (NTM)","unit":"x",',
+' "data":[{"label":"NVDA","value":28,"highlight":true},{"label":"AMD","value":24}]}',
+"```",
+"",
+"```chart",
+'{"type":"scenario","title":"Per-share value","unit":"$",',
+' "bear":58,"base":125,"bull":179,"current":201,"currentLabel":"Market"}',
+"```",
+"",
+"Always keep the equivalent numbers in a markdown table too, so the analysis still",
+"reads correctly if a chart cannot be drawn. Keep formatting clean and readable."
 ].join("\n");
 
 const FRAMEWORKS = {
@@ -241,78 +313,201 @@ const FRAMEWORKS = {
   screen:"Produce a quick screen in under one page: one-line business description, current price and key multiples, three things to like, three concerns, the single most important question for deeper work, and which framework to apply next."
 };
 
-const CHIPS = [
-  ["auto","Auto"],["screen","Quick Screen"],["dcf","DCF"],["comps","Comps"],
-  ["3stmt","3-Statement"],["lbo","LBO"],["ma","M&A"],["sotp","SOTP"],
-  ["credit","Credit"],["unit","Unit Economics"],["risk","Sensitivity"],["memo","IC Memo"]
-];
-const EXAMPLES = [
-  ["Full analysis","Analyse NVDA — is it worth buying?","Analyse NVDA. Is it worth buying at the current price?"],
-  ["DCF model","Build a DCF for Apple","Build a DCF valuation for Apple with a sensitivity table."],
-  ["Comps","Compare AMD to its peers","Compare AMD against its semiconductor peers on NTM multiples."],
-  ["中文分析","分析騰訊 0700.HK","分析騰訊 (0700.HK) 嘅估值同主要風險。"]
-];
-
-let framework = "auto", history = [], busy = false, apiKey = "";
+/* ===================== config ===================== */
+const CHIP_ORDER = ["auto","screen","dcf","comps","3stmt","lbo","ma","sotp","credit","unit","risk","memo"];
+let lang = "en", framework = "auto", history = [], busy = false, apiKey = "";
 const $ = id => document.getElementById(id);
 
-/* =================================================================
-   Markdown renderer.
-
-   Builds real DOM nodes: every piece of model text is inserted with
-   textContent, and link hrefs are scheme-checked before assignment.
-   No HTML string is ever parsed, so markup can only originate from
-   the createElement calls in this file - there is no injection
-   surface for anything the model or the user types.
-   ================================================================= */
-
+/* ===================== markdown renderer =====================
+   Builds real DOM nodes. All model text enters via textContent and
+   link hrefs are scheme-checked, so markup can only originate from
+   the createElement calls below - there is no injection surface.
+   ============================================================= */
 function safeUrl(u){ return /^https?:\/\//i.test(u) ? u : "#"; }
 
 const INLINE_RE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(\[[^\]]+\]\([^)\s]+\))/g;
 const LINK_RE = /^\[([^\]]+)\]\(([^)\s]+)\)$/;
 
-/** Append inline-formatted text to parent as DOM nodes. */
 function appendInline(parent, text){
   let last = 0;
   for(const m of String(text).matchAll(INLINE_RE)){
-    if(m.index > last){
-      parent.appendChild(document.createTextNode(text.slice(last, m.index)));
-    }
+    if(m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
     const tok = m[0];
     let el;
     if(tok.charAt(0) === "`"){
-      el = document.createElement("code");
-      el.textContent = tok.slice(1, -1);
-    } else if(tok.slice(0, 2) === "**"){
-      el = document.createElement("strong");
-      el.textContent = tok.slice(2, -2);
+      el = document.createElement("code"); el.textContent = tok.slice(1,-1);
+    } else if(tok.slice(0,2) === "**"){
+      el = document.createElement("strong"); el.textContent = tok.slice(2,-2);
     } else if(tok.charAt(0) === "["){
-      const parts = tok.match(LINK_RE);
+      const p = tok.match(LINK_RE);
       el = document.createElement("a");
-      el.textContent = parts[1];
-      el.setAttribute("href", safeUrl(parts[2]));
-      el.setAttribute("target", "_blank");
-      el.setAttribute("rel", "noopener noreferrer");
+      el.textContent = p[1];
+      el.setAttribute("href", safeUrl(p[2]));
+      el.setAttribute("target","_blank");
+      el.setAttribute("rel","noopener noreferrer");
     } else {
-      el = document.createElement("em");
-      el.textContent = tok.slice(1, -1);
+      el = document.createElement("em"); el.textContent = tok.slice(1,-1);
     }
     parent.appendChild(el);
     last = m.index + tok.length;
   }
-  if(last < text.length){
-    parent.appendChild(document.createTextNode(text.slice(last)));
+  if(last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+function splitRow(r){ return r.trim().replace(/^\||\|$/g,"").split("|").map(c=>c.trim()); }
+
+/* ---------- SVG charts ---------- */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function svgText(x, y, str, attrs){
+  const t = svgEl("text", Object.assign({x:x, y:y}, attrs || {}));
+  t.textContent = str;
+  return t;
+}
+function fmt(n, unit){
+  const s = (Math.abs(n) >= 1000) ? Math.round(n).toLocaleString() :
+            (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(1));
+  if(unit === "x") return s + "x";
+  if(unit === "%") return s + "%";
+  if(unit === "$") return "$" + s;
+  return unit ? s + " " + unit : s;
+}
+
+/** Horizontal range bars with an optional marker - the banker's "football field". */
+function chartFootball(spec){
+  const rows = spec.series || [];
+  if(!rows.length) return null;
+  const W = 700, rowH = 38, padL = 130, padR = 60, top = 14;
+  const H = top + rows.length * rowH + 30;
+  let lo = Infinity, hi = -Infinity;
+  rows.forEach(r => { lo = Math.min(lo, r.low); hi = Math.max(hi, r.high); });
+  if(spec.marker && typeof spec.marker.value === "number"){
+    lo = Math.min(lo, spec.marker.value); hi = Math.max(hi, spec.marker.value);
   }
+  const span = (hi - lo) || 1;
+  lo -= span * 0.12; hi += span * 0.12;
+  const X = v => padL + ((v - lo) / (hi - lo)) * (W - padL - padR);
+
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    svg.appendChild(svgText(padL - 10, y + 19, r.label,
+      {fill:"#8b98a5","font-size":"12","text-anchor":"end","font-family":"sans-serif"}));
+    const x1 = X(r.low), x2 = X(r.high);
+    svg.appendChild(svgEl("rect", {x:x1, y:y + 6, width:Math.max(2, x2 - x1), height:20,
+      rx:4, fill:"#d4a24a", opacity:"0.75"}));
+    svg.appendChild(svgText(x1 - 5, y + 20, fmt(r.low, spec.unit),
+      {fill:"#8b98a5","font-size":"10.5","text-anchor":"end","font-family":"monospace"}));
+    svg.appendChild(svgText(x2 + 5, y + 20, fmt(r.high, spec.unit),
+      {fill:"#8b98a5","font-size":"10.5","font-family":"monospace"}));
+  });
+  if(spec.marker && typeof spec.marker.value === "number"){
+    const mx = X(spec.marker.value);
+    svg.appendChild(svgEl("line", {x1:mx, y1:top - 4, x2:mx, y2:top + rows.length * rowH + 2,
+      stroke:"#f85149","stroke-width":"2","stroke-dasharray":"4 3"}));
+    svg.appendChild(svgText(mx, top + rows.length * rowH + 18,
+      (spec.marker.label || "Current") + " " + fmt(spec.marker.value, spec.unit),
+      {fill:"#f85149","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  }
+  return svg;
 }
 
-function splitRow(row){
-  return row.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+/** Vertical bars for peer multiples and similar comparisons. */
+function chartBar(spec){
+  const d = spec.data || [];
+  if(!d.length) return null;
+  const W = 700, H = 260, padL = 46, padB = 46, top = 16;
+  const max = Math.max.apply(null, d.map(x => x.value)) * 1.15 || 1;
+  const bw = (W - padL - 16) / d.length;
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  for(let g = 0; g <= 4; g++){
+    const y = top + (H - top - padB) * (g / 4);
+    const val = max * (1 - g / 4);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W - 8, y2:y,
+      stroke:"#263341","stroke-width":"1"}));
+    svg.appendChild(svgText(padL - 7, y + 4, fmt(val, spec.unit),
+      {fill:"#8b98a5","font-size":"10","text-anchor":"end","font-family":"monospace"}));
+  }
+  d.forEach((it, i) => {
+    const h = ((it.value / max) * (H - top - padB));
+    const x = padL + i * bw + bw * 0.18;
+    const w = bw * 0.64;
+    const y = H - padB - h;
+    svg.appendChild(svgEl("rect", {x:x, y:y, width:w, height:Math.max(1, h), rx:3,
+      fill: it.highlight ? "#3fb950" : "#d4a24a", opacity: it.highlight ? "0.95" : "0.75"}));
+    svg.appendChild(svgText(x + w / 2, y - 6, fmt(it.value, spec.unit),
+      {fill:"#e6edf3","font-size":"11","text-anchor":"middle","font-family":"monospace"}));
+    svg.appendChild(svgText(x + w / 2, H - padB + 16, it.label,
+      {fill:"#8b98a5","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  });
+  return svg;
 }
 
-/** Render markdown source into a DocumentFragment. */
+/** Bear / base / bull columns against the current price. */
+function chartScenario(spec){
+  const order = [["bear","#f85149"],["base","#8b98a5"],["bull","#3fb950"]];
+  const items = order.filter(o => typeof spec[o[0]] === "number")
+                     .map(o => ({label:o[0], value:spec[o[0]], color:o[1]}));
+  if(!items.length) return null;
+  const W = 700, H = 250, padL = 46, padB = 46, top = 16;
+  let max = Math.max.apply(null, items.map(i => i.value));
+  if(typeof spec.current === "number") max = Math.max(max, spec.current);
+  max *= 1.18;
+  const bw = (W - padL - 16) / items.length;
+  const svg = svgEl("svg", {viewBox:"0 0 " + W + " " + H, role:"img"});
+  const Y = v => H - padB - (v / max) * (H - top - padB);
+  items.forEach((it, i) => {
+    const x = padL + i * bw + bw * 0.24, w = bw * 0.52, y = Y(it.value);
+    svg.appendChild(svgEl("rect", {x:x, y:y, width:w, height:Math.max(1, H - padB - y),
+      rx:3, fill:it.color, opacity:"0.8"}));
+    svg.appendChild(svgText(x + w / 2, y - 6, fmt(it.value, spec.unit),
+      {fill:"#e6edf3","font-size":"12","text-anchor":"middle","font-family":"monospace"}));
+    svg.appendChild(svgText(x + w / 2, H - padB + 17,
+      (spec.labels && spec.labels[it.label]) || it.label.toUpperCase(),
+      {fill:"#8b98a5","font-size":"11","text-anchor":"middle","font-family":"sans-serif"}));
+  });
+  if(typeof spec.current === "number"){
+    const y = Y(spec.current);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W - 8, y2:y,
+      stroke:"#1f6feb","stroke-width":"2","stroke-dasharray":"5 3"}));
+    svg.appendChild(svgText(W - 10, y - 6,
+      (spec.currentLabel || "Current") + " " + fmt(spec.current, spec.unit),
+      {fill:"#1f6feb","font-size":"11","text-anchor":"end","font-family":"sans-serif"}));
+  }
+  return svg;
+}
+
+function renderChart(spec){
+  let svg = null;
+  try{
+    if(spec.type === "football") svg = chartFootball(spec);
+    else if(spec.type === "bar") svg = chartBar(spec);
+    else if(spec.type === "scenario") svg = chartScenario(spec);
+  }catch(e){ svg = null; }
+  if(!svg) return null;
+  const box = document.createElement("div");
+  box.className = "chartbox";
+  if(spec.title){
+    const t = document.createElement("div");
+    t.className = "ctitle"; t.textContent = spec.title;
+    box.appendChild(t);
+  }
+  box.appendChild(svg);
+  if(spec.note){
+    const n = document.createElement("div");
+    n.className = "cnote"; n.textContent = spec.note;
+    box.appendChild(n);
+  }
+  return box;
+}
+
 function renderMarkdown(src){
   const frag = document.createDocumentFragment();
-  const lines = String(src).replace(/\r/g, "").split("\n");
+  const lines = String(src).replace(/\r/g,"").split("\n");
   const isRow = s => /^\s*\|.*\|\s*$/.test(s);
   let i = 0;
 
@@ -320,113 +515,142 @@ function renderMarkdown(src){
     const L = lines[i];
     if(!L.trim()){ i++; continue; }
 
-    // Table: header row, separator row, then body rows.
+    // fenced block: ```chart renders a graphic, anything else is code
+    const fence = L.match(/^\s*```\s*(\w*)\s*$/);
+    if(fence){
+      const kind = (fence[1] || "").toLowerCase();
+      const buf = [];
+      i++;
+      while(i < lines.length && !/^\s*```\s*$/.test(lines[i])){ buf.push(lines[i]); i++; }
+      i++; // closing fence
+      const raw = buf.join("\n");
+      if(kind === "chart"){
+        let spec = null;
+        try{ spec = JSON.parse(raw); }catch(e){ spec = null; }
+        const c = spec ? renderChart(spec) : null;
+        if(c){ frag.appendChild(c); continue; }
+      }
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.textContent = raw;
+      pre.appendChild(code);
+      frag.appendChild(pre);
+      continue;
+    }
+
     if(isRow(L) && isRow(lines[i+1] || "") && /^[\s|:\-]+$/.test(lines[i+1])){
       const wrap = document.createElement("div");
       wrap.className = "tablewrap";
       const table = document.createElement("table");
       const thead = document.createElement("thead");
       const hrow = document.createElement("tr");
-      splitRow(L).forEach(c => {
-        const th = document.createElement("th");
-        appendInline(th, c);
-        hrow.appendChild(th);
-      });
-      thead.appendChild(hrow);
-      table.appendChild(thead);
-
+      splitRow(L).forEach(c => { const th = document.createElement("th"); appendInline(th,c); hrow.appendChild(th); });
+      thead.appendChild(hrow); table.appendChild(thead);
       const tbody = document.createElement("tbody");
       i += 2;
       while(i < lines.length && isRow(lines[i])){
         const tr = document.createElement("tr");
-        splitRow(lines[i]).forEach(c => {
-          const td = document.createElement("td");
-          appendInline(td, c);
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-        i++;
+        splitRow(lines[i]).forEach(c => { const td = document.createElement("td"); appendInline(td,c); tr.appendChild(td); });
+        tbody.appendChild(tr); i++;
       }
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      frag.appendChild(wrap);
+      table.appendChild(tbody); wrap.appendChild(table); frag.appendChild(wrap);
       continue;
     }
 
     const head = L.match(/^(#{1,3})\s+(.*)/);
     if(head){
       const h = document.createElement("h" + head[1].length);
-      appendInline(h, head[2]);
-      frag.appendChild(h);
-      i++; continue;
+      appendInline(h, head[2]); frag.appendChild(h); i++; continue;
     }
-
     if(/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(L)){
-      frag.appendChild(document.createElement("hr"));
-      i++; continue;
+      frag.appendChild(document.createElement("hr")); i++; continue;
     }
-
     if(/^\s*>/.test(L)){
       const buf = [];
-      while(i < lines.length && /^\s*>/.test(lines[i])){
-        buf.push(lines[i].replace(/^\s*>\s?/, "")); i++;
-      }
+      while(i < lines.length && /^\s*>/.test(lines[i])){ buf.push(lines[i].replace(/^\s*>\s?/,"")); i++; }
       const bq = document.createElement("blockquote");
       bq.appendChild(renderMarkdown(buf.join("\n")));
-      frag.appendChild(bq);
-      continue;
+      frag.appendChild(bq); continue;
     }
-
     if(/^\s*([-*+]|\d+\.)\s+/.test(L)){
       const ordered = /^\s*\d+\./.test(L);
       const list = document.createElement(ordered ? "ol" : "ul");
       while(i < lines.length && /^\s*([-*+]|\d+\.)\s+/.test(lines[i])){
         const li = document.createElement("li");
-        appendInline(li, lines[i].replace(/^\s*([-*+]|\d+\.)\s+/, ""));
-        list.appendChild(li);
-        i++;
+        appendInline(li, lines[i].replace(/^\s*([-*+]|\d+\.)\s+/,""));
+        list.appendChild(li); i++;
       }
-      frag.appendChild(list);
-      continue;
+      frag.appendChild(list); continue;
     }
-
     const buf = [];
     while(i < lines.length && lines[i].trim() && !isRow(lines[i]) &&
-          !/^\s*(#{1,3}\s|>|[-*+]\s|\d+\.\s)/.test(lines[i])){
-      buf.push(lines[i]); i++;
-    }
+          !/^\s*(```|#{1,3}\s|>|[-*+]\s|\d+\.\s)/.test(lines[i])){ buf.push(lines[i]); i++; }
     if(buf.length){
       const p = document.createElement("p");
-      appendInline(p, buf.join(" "));
-      frag.appendChild(p);
+      appendInline(p, buf.join(" ")); frag.appendChild(p);
     }
   }
   return frag;
 }
 
-/* ---- UI ---- */
-CHIPS.forEach(([id, label], idx) => {
-  const c = document.createElement("div");
-  c.className = "chip" + (idx === 0 ? " on" : "");
-  c.textContent = label;
-  c.onclick = () => {
-    framework = id;
-    document.querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
-    c.classList.add("on");
-  };
-  $("chips").appendChild(c);
-});
+/* ===================== UI ===================== */
+function buildLangSwitch(){
+  const sw = $("langsw");
+  while(sw.firstChild) sw.removeChild(sw.firstChild);
+  [["en","EN"],["zh","中"],["both","中/EN"]].forEach(([code,label]) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if(code === lang) b.className = "on";
+    b.onclick = () => { lang = code; try{ localStorage.setItem("wsa_lang", code); }catch(e){} applyLang(); };
+    sw.appendChild(b);
+  });
+}
 
-EXAMPLES.forEach(([tag, label, prompt]) => {
-  const d = document.createElement("div");
-  d.className = "ex";
-  const b = document.createElement("b");
-  b.textContent = tag;
-  d.appendChild(b);
-  d.appendChild(document.createTextNode(label));
-  d.onclick = () => { $("input").value = prompt; $("input").focus(); };
-  $("examples").appendChild(d);
-});
+function buildChips(){
+  const box = $("chips");
+  while(box.firstChild) box.removeChild(box.firstChild);
+  const t = I18N[lang];
+  CHIP_ORDER.forEach(id => {
+    const c = document.createElement("div");
+    c.className = "chip" + (id === framework ? " on" : "");
+    c.textContent = t.chips[id];
+    c.onclick = () => {
+      framework = id;
+      document.querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
+      c.classList.add("on");
+    };
+    box.appendChild(c);
+  });
+}
+
+function buildExamples(){
+  const box = $("examples");
+  if(!box) return;
+  while(box.firstChild) box.removeChild(box.firstChild);
+  I18N[lang].examples.forEach(([tag,label,prompt]) => {
+    const d = document.createElement("div");
+    d.className = "ex";
+    const b = document.createElement("b");
+    b.textContent = tag;
+    d.appendChild(b);
+    d.appendChild(document.createTextNode(label));
+    d.onclick = () => { $("input").value = prompt; $("input").focus(); };
+    box.appendChild(d);
+  });
+}
+
+function applyLang(){
+  const t = I18N[lang];
+  $("tagline").textContent = t.tagline;
+  $("input").placeholder = t.placeholder;
+  $("send").textContent = t.send;
+  $("status").textContent = busy ? t.analysing : t.ready;
+  $("disclaim").textContent = t.disclaim;
+  if($("wTitle")) $("wTitle").textContent = t.wTitle;
+  if($("wBody")) $("wBody").textContent = t.wBody;
+  document.documentElement.lang = (lang === "en") ? "en" : "zh-HK";
+  buildLangSwitch(); buildChips(); buildExamples();
+}
 
 function bubble(role, node){
   const w = $("welcome"); if(w) w.remove();
@@ -445,23 +669,17 @@ function bubble(role, node){
 }
 function textNode(t){
   const p = document.createElement("p");
-  p.textContent = t;
-  p.style.whiteSpace = "pre-wrap";
-  return p;
+  p.textContent = t; p.style.whiteSpace = "pre-wrap"; return p;
 }
 function typingNode(){
-  const t = document.createElement("div");
-  t.className = "typing";
+  const t = document.createElement("div"); t.className = "typing";
   t.appendChild(document.createElement("i"));
   t.appendChild(document.createElement("i"));
   t.appendChild(document.createElement("i"));
   return t;
 }
-function errorNode(msg){
-  const e = document.createElement("div");
-  e.className = "err";
-  e.textContent = msg;
-  return e;
+function errorNode(m){
+  const e = document.createElement("div"); e.className = "err"; e.textContent = m; return e;
 }
 function clearNode(n){ while(n.firstChild) n.removeChild(n.firstChild); }
 
@@ -483,8 +701,7 @@ async function send(){
   const box = $("input"), text = box.value.trim();
   if(!text || busy) return;
   if(!apiKey){ openGate(); return; }
-
-  busy = true; $("send").disabled = true; $("status").textContent = "ANALYSING…";
+  busy = true; $("send").disabled = true; $("status").textContent = I18N[lang].analysing;
   bubble("user", textNode(text));
   box.value = ""; box.style.height = "auto";
   history.push({role:"user", content:text});
@@ -493,30 +710,26 @@ async function send(){
   let system = BASE_SYSTEM;
   const extra = FRAMEWORKS[framework] || "";
   if(extra) system += "\n\nThe user selected a specific framework. " + extra;
+  system += "\n\nLANGUAGE. " + (LANG_INSTRUCTION[lang] || LANG_INSTRUCTION.en);
 
   try{
     const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
+      method:"POST",
+      headers:{
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        "content-type": "application/json"
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true",
+        "content-type":"application/json"
       },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: system,
-        messages: history.slice(-20)
-      })
+      body: JSON.stringify({model:MODEL, max_tokens:MAX_TOKENS, system:system,
+                            messages:history.slice(-20)})
     });
     const data = await r.json();
     clearNode(pending);
     if(!r.ok){
       pending.appendChild(errorNode(friendlyError(r.status, data)));
     } else {
-      const reply = (data.content || [])
-        .filter(b => b.type === "text").map(b => b.text).join("");
+      const reply = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       if(!reply){
         pending.appendChild(errorNode("The model returned an empty response. Try rephrasing."));
       } else {
@@ -528,22 +741,29 @@ async function send(){
     clearNode(pending);
     pending.appendChild(errorNode("Network error: " + e.message));
   }
-  busy = false; $("send").disabled = false; $("status").textContent = "READY";
+  busy = false; $("send").disabled = false; $("status").textContent = I18N[lang].ready;
   pending.scrollIntoView({behavior:"smooth", block:"end"});
 }
 
-/* ---- key management ---- */
+$("send").onclick = send;
+$("input").addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+$("input").addEventListener("input", function(){
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 180) + "px";
+});
+
 function openGate(){
   $("gate").classList.add("show");
   $("clearKey").style.display = apiKey ? "block" : "none";
-  $("key").value = "";
-  $("key").focus();
+  $("key").value = ""; $("key").focus();
 }
 function saveKey(){
   const v = $("key").value.trim();
   if(!v){ $("gateErr").textContent = "Paste your API key first."; return; }
-  if(v.slice(0, 7) !== "sk-ant-"){
-    $("gateErr").textContent = "That does not look like an Anthropic key (it should start with sk-ant-).";
+  if(v.slice(0,7) !== "sk-ant-"){
+    $("gateErr").textContent = "That does not look like an Anthropic key (should start with sk-ant-).";
     return;
   }
   apiKey = v;
@@ -558,19 +778,14 @@ function clearKey(){
   $("gateErr").textContent = "Stored key removed from this browser.";
   $("clearKey").style.display = "none";
 }
-
-$("send").onclick = send;
 $("gear").onclick = openGate;
 $("saveKey").onclick = saveKey;
 $("clearKey").onclick = clearKey;
 $("key").addEventListener("keydown", e => { if(e.key === "Enter") saveKey(); });
-$("input").addEventListener("keydown", e => {
-  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
-});
-$("input").addEventListener("input", function(){
-  this.style.height = "auto";
-  this.style.height = Math.min(this.scrollHeight, 180) + "px";
-});
+
+try{ lang = localStorage.getItem("wsa_lang") || "en"; }catch(e){ lang = "en"; }
+if(!I18N[lang]) lang = "en";
+applyLang();
 
 try{ apiKey = localStorage.getItem(STORE) || ""; }catch(e){ apiKey = ""; }
 if(apiKey) $("input").focus(); else openGate();
