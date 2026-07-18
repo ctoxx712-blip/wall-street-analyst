@@ -1,15 +1,31 @@
-# Render Blueprint - defines the bot as a Background Worker.
-# Secrets are NOT here; set them in the Render dashboard (sync: false).
+# Render Blueprint. Secrets are NOT stored here - set them in the dashboard.
 services:
+  # The website. Web Services DO have a free tier (they sleep when idle
+  # and cold-start on the next visit). Upgrade to "starter" to stay warm.
+  - type: web
+    name: wall-street-analyst
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 180 --workers 2
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # enter in dashboard
+      - key: ACCESS_PASSWORD
+        sync: false          # optional; blank = open to anyone
+
+  # The Telegram bot. Long-polling needs a Background Worker, which is
+  # paid (~$7/mo) - there is no free worker tier. Delete this block if
+  # you only want the website.
   - type: worker
     name: finance-telegram-bot
     runtime: python
-    plan: starter            # Background workers are paid (~$7/mo). No free tier.
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: python finance_bot.py
     envVars:
       - key: BOT_TOKEN
-        sync: false           # enter in dashboard
+        sync: false
       - key: CHAT_ID
         sync: false
       - key: ANTHROPIC_API_KEY
